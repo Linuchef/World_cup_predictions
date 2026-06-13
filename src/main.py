@@ -1,4 +1,5 @@
 from load_data import load_data_func
-from filter_data import text_to_string
+from filter_data import filter_data_func
 
-print(text_to_string("countries_of_interest.txt"))
+print(filter_data_func())
+
