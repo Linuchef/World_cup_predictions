@@ -8,12 +8,18 @@ def text_to_string(path : str) -> list[str]:
 
     return countries
 
-def filter_on_countries(
-        df : pd.DataFrame, 
-        countries : list[str]
+def update_country_names (
+        df : pd.DataFrame,
+        df_former : pd.DataFrame,
+        team_type: str,
+        col_name : str
         ) -> pd.DataFrame:
     
-    return
+    mapping = df_former.set_index("former")["current"]
+    df[col_name] = (df[team_type].map(mapping).fillna(df[team_type]))
+    
+    return df
+
 
 def filter_data_func() -> None:
 
@@ -24,6 +30,17 @@ def filter_data_func() -> None:
     goalscorers_df = pd.read_csv(dir + 'goalscorers.csv')
     results_df = pd.read_csv(dir + 'results.csv')
     shootouts_df = pd.read_csv(dir + 'shootouts.csv')
+
+    results_df = update_country_names(
+        results_df, former_names_df, 
+        "home_team", 
+        "home_team")
+    results_df = update_country_names(
+        results_df, 
+        former_names_df, 
+        "away_team",
+        "away_team")
+
 
     return results_df
     
