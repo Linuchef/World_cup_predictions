@@ -4,4 +4,4 @@ def goal_scored(
 
         ) -> tuple[int, float]:
     
-    
+    return 

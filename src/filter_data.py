@@ -4,9 +4,6 @@ def text_to_string(path : str) -> list[str]:
     with open(path, "r", encoding="utf-8") as file:
         countries = file.read().replace('\n', '').split(',')
     return countries
-        
-
-    return countries
 
 def update_country_names (
         df : pd.DataFrame,
@@ -20,8 +17,83 @@ def update_country_names (
     
     return df
 
+def add_form_team_features(df : pd.DataFrame, n : int = 10) -> pd.DataFrame:
+    df = df.sort_values("date").copy()
 
-def filter_data_func() -> None:
+    home = pd.DataFrame({
+        "match_id" : df.index, 
+        "date" : df["date"],
+        "team" : df["home_team"],
+        "is_home" : True,
+        "goals_for" : df["home_score"],
+        "goals_against" : df["away_score"],
+
+        "points" : 
+        3 * (df["home_score"] > df["away_score"]).astype(int) +
+        1 * (df["home_score"] == df["away_score"])
+    })
+
+    away = pd.DataFrame({
+        "match_id" : df.index, 
+        "date" : df["date"],
+        "team" : df["home_team"],
+        "is_home" : True,
+        "goals_for" : df["home_score"],
+        "goals_against" : df["away_score"],
+
+        "points" : 
+        3 * (df["home_score"] < df["away_score"]).astype(int) +
+        1 * (df["home_score"] == df["away_score"])
+    })
+
+    long = pd.concat(
+        [home, away],
+        ignore_index=True
+    )
+
+    long = long.sort_values(
+        ["team", "date"]
+    )
+
+    grouped = long.groupby("team")
+
+    long["avg_points_last_n"] = (
+        grouped["points"]
+        .transform(
+            lambda x:
+            x.shift()
+            .rolling(
+                n, 
+                min_periods=1
+            ).mean()
+        )
+    ) 
+
+    long["avg_goals_last_n"] = (
+        grouped["goals_for"]
+        .transform(
+            lambda x:
+            x.shift()
+            .rolling(
+                n,
+                min_periods=1
+            ).mean()
+        )
+    )
+
+    long["avg_conceded_last_n"] = (
+        grouped["goals_against"]
+        .transform(
+            lambda x:
+            x.shift()
+            .rolling(
+                n,
+                min_periods=1
+            ).mean()
+        )
+    )
+
+def filter_data_func(max_date : str = None) -> None:
 
     dir = "data/raw/"
     countries_list = text_to_string("countries_of_interest.txt")
@@ -40,7 +112,12 @@ def filter_data_func() -> None:
         former_names_df, 
         "away_team",
         "away_team")
+    
+    results_df["date"] = pd.to_datetime(results_df["date"])
+    results_df["year"] = results_df["date"].dt.year
 
-
+    if max_date != None:
+        results_df = results_df[results_df["date"] < max_date]
+        
     return results_df
     
