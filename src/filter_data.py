@@ -36,8 +36,8 @@ def add_form_team_features(df : pd.DataFrame, n : int = 10) -> pd.DataFrame:
     away = pd.DataFrame({
         "match_id" : df.index, 
         "date" : df["date"],
-        "team" : df["home_team"],
-        "is_home" : True,
+        "team" : df["away_team"],
+        "is_home" : False,
         "goals_for" : df["home_score"],
         "goals_against" : df["away_score"],
 
@@ -57,7 +57,7 @@ def add_form_team_features(df : pd.DataFrame, n : int = 10) -> pd.DataFrame:
 
     grouped = long.groupby("team")
 
-    long["avg_points_last_n"] = (
+    long["avg_points_last_10"] = (
         grouped["points"]
         .transform(
             lambda x:
@@ -69,7 +69,7 @@ def add_form_team_features(df : pd.DataFrame, n : int = 10) -> pd.DataFrame:
         )
     ) 
 
-    long["avg_goals_last_n"] = (
+    long["avg_goals_last_10"] = (
         grouped["goals_for"]
         .transform(
             lambda x:
@@ -81,7 +81,7 @@ def add_form_team_features(df : pd.DataFrame, n : int = 10) -> pd.DataFrame:
         )
     )
 
-    long["avg_conceded_last_n"] = (
+    long["avg_conceded_last_10"] = (
         grouped["goals_against"]
         .transform(
             lambda x:
@@ -93,7 +93,75 @@ def add_form_team_features(df : pd.DataFrame, n : int = 10) -> pd.DataFrame:
         )
     )
 
-def filter_data_func(max_date : str = None) -> None:
+    home_features = (
+        long[long["is_home"]]
+        [
+            [
+            "match_id",
+            "avg_points_last_10",
+            "avg_goals_last_10",
+            "avg_conceded_last_10"
+            ]
+        ]
+    .rename(
+        columns = {
+            "avg_points_last_10" : 
+            "home_avg_points_last_10",
+
+            "avg_goals_last_10" :
+            "home_avg_goals_last_10",
+
+            "avg_conceded_last_10" :
+            "home_avg_conceded_last_10"
+        }
+    )
+    )
+
+    away_features = (
+        long[~long["is_home"]]
+        [
+            [
+                "match_id",
+                "avg_points_last_10",
+                "avg_goals_last_10",
+                "avg_conceded_last_10"
+            ]
+        ]
+        .rename(
+            columns={
+                "avg_points_last_10":
+                    "away_avg_points_last_10",
+
+                "avg_goals_last_10":
+                    "away_avg_goals_last_10",
+
+                "avg_conceded_last_10":
+                    "away_avg_conceded_last_10"
+            }
+        )
+    )
+
+    df = df.merge(
+        home_features,
+        left_index=True,
+        right_on="match_id",
+        how="left"
+    )
+
+    df = df.merge(
+        away_features,
+        on="match_id",
+        how="left"
+    )
+
+    return df.drop(
+        columns = ["match_id"]
+    )
+
+def filter_data_func(
+        min_date : str = None,
+        max_date : str = None
+        ) -> None:
 
     dir = "data/raw/"
     countries_list = text_to_string("countries_of_interest.txt")
@@ -118,6 +186,10 @@ def filter_data_func(max_date : str = None) -> None:
 
     if max_date != None:
         results_df = results_df[results_df["date"] < max_date]
+    if min_date != None: 
+        results_df = results_df[results_df["date"] > min_date]
+
+    results_df = add_form_team_features(results_df)
         
     return results_df
     
