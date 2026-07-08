@@ -78,3 +78,4 @@ def test_models(df : pd.DataFrame) -> pd.DataFrame:
         "glm_away_score" : [away_score_GLM],
         "xgb_away_score" : [away_score_XGB]
     })
+

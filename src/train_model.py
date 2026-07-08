@@ -1,4 +1,5 @@
 import statsmodels.api as sm
+from sklearn.linear_model import PoissonRegressor
 import pandas as pd
 import xgboost as xgb
 
@@ -15,7 +16,6 @@ def make_data_ready_glm(x : pd.DataFrame) -> pd.DataFrame:
     x["neutral"] = x["neutral"].astype(int)
     x["year"] = x["year"].astype(int)
     
-    x = sm.add_constant(x)
     x = x.astype(float)
 
     return x
@@ -41,13 +41,12 @@ def poisson_model(y : pd.Series, x : pd.DataFrame) -> any:
     x = make_data_ready_glm(x)
     y = y.astype(float)
 
-    model = sm.GLM(
-        y,
-        x, 
-        family = sm.families.Poisson()
-    ).fit()
+    model = PoissonRegressor(
+        alpha=0,
+        max_iter=10000
+    )
 
-    return model
+    return model.fit(x,y)
 
 def XGboost_model(y : pd.Series, x : pd.DataFrame) -> any:
 
@@ -69,25 +68,27 @@ def XGboost_model(y : pd.Series, x : pd.DataFrame) -> any:
     return model
 
 def multiple_poisson(df : pd.DataFrame) -> list[any]:
+
+    feature_cols = [
+        "home_team",
+        "away_team",
+        "tournament",
+        "neutral",
+        "year",
+        "home_avg_points_last_10",
+        "home_avg_goals_last_10",
+        "home_avg_conceded_last_10",
+        "away_avg_points_last_10",
+        "away_avg_goals_last_10",
+        "away_avg_conceded_last_10",
+    ]
+
+    df = df.dropna(subset=feature_cols + ["home_score", "away_score"])
+
     y1 = df["home_score"]
     y2 = df["away_score"]
 
-    x = df[
-        [
-            "home_team", 
-            "away_team", 
-            "tournament", 
-            "neutral", 
-            "year",
-
-            "home_avg_points_last_10",
-            "home_avg_goals_last_10",
-            "home_avg_conceded_last_10",
-
-            "away_avg_points_last_10",
-            "away_avg_goals_last_10",
-            "away_avg_conceded_last_10"]
-        ]
+    x = df[feature_cols]
 
     home_score_mod = poisson_model(y1, x)
     away_score_mod = poisson_model(y2, x)
