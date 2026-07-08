@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np 
 
 def text_to_string(path : str) -> list[str]:
     with open(path, "r", encoding="utf-8") as file:
@@ -193,3 +194,66 @@ def filter_data_func(
         
     return results_df
     
+def tournament_k(tournament : str) -> float:
+    tournament = tournament.lower()
+
+    if "world cup" in tournament:
+        return 60
+    if "qualification" in tournament:
+        return 40
+    if "friendly" in tournament:
+        return 20
+    return 30
+
+def add_elo_features(
+        df : pd.DataFrame,
+        initial_elo : float = 1500,
+        home_advantage : float = 75
+) -> pd.DataFrame:
+    
+    df = df.sort_values("date").copy()
+    ratings = {}
+
+    home_elos = []
+    away_elos = []
+
+    for _, row in df.iterrows():
+        home_team = row["home_team"]
+        away_team = row["away_team"]
+
+        home_elo = ratings.get(home_team, initial_elo)
+        away_elo = ratings.get(away_team, initial_elo)
+
+        home_elos.append(home_elo)
+        away_elos.append(away_elo)
+
+        if row["neutral"]:
+            home_adjusted_elo = home_elo
+        else:
+            home_adjusted_elo = home_elo + home_advantage
+
+        expected_home = 1 / (1 + 10**((away_elo - home_adjusted_elo) / 400))
+
+        if row["home_score"] > row["away_score"]:
+            actual_home = 1.0
+
+        elif row["home_score"] == row["away_score"]:
+            actual_home = 0.5
+
+        else:
+            actual_home = 0.0 
+        goals_diff = abs(row["home_score"] - row["away_score"])
+        margin_multiplier = np.log(goals_diff + 1)
+
+        k = tournament_k(row["tournament"])
+
+        change = k * margin_multiplier * (actual_home - expected_home)
+
+        ratings["home_team"] = home_elos + change
+        ratings["away_team"] = away_elo - change
+
+    df["home_elo"] = home_elos
+    df["away_elos"] = away_elos
+    df["elo_diff"] = df["home_elo"] - df["away_elo"]
+
+    return df
